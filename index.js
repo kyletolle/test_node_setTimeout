@@ -2,23 +2,31 @@ const express = require('express');
 const app = express();
 
 app.get('/', (req, res) => {
+  console.info('/');
+  console.info('Done');
   res.send('Hello World!')
 });
 
 app.get('/three', (req, res) => {
+  console.info('/three');
   setTimeout(() => {
+    console.info('Done');
     res.send('Took 3 seconds to load');
   }, 3000);
 });
 
 app.get('/five', (req, res) => {
+  console.info('/five');
   setTimeout(() => {
+    console.info('Done');
     res.send('Took 5 seconds to load');
   }, 5000);
 });
 
 // Start server and listen on port 8180
 const server = app.listen(8180);
+server.keepAliveTimeout = 65000; // Ensure all inactive connections are terminated by the ALB, by setting this a few seconds higher than the ALB idle timeout
+server.headersTimeout = 66000; // Ensure the headersTimeout is set higher than the keepAliveTimeout due to this nodejs regression bug: https://github.com/nodejs/node/issues/27363
 
 /**
  * Attempt 1
@@ -78,7 +86,10 @@ const server = app.listen(8180);
  * docs at https://nodejs.org/api/http.html#class-httpincomingmessage.
  */
 app.get('/two', (req, res) => {
+  console.info('/two');
+
   setTimeout(() => {
+    console.info('Done');
     res.send('Took 2 seconds to load');
   }, 2000);
   req.setTimeout(500, () => {
@@ -105,8 +116,9 @@ app.post('/data1', (req, res) => {
   console.info('/data1');
 
   setTimeout(() => {
-    // WHen tunneling through ngrok, this doesn't work properly?!
-    res.status(201).send('Took 2 seconds to send our response.');
+    // When tunneling through ngrok, this doesn't work properly?!
+    console.info('Done');
+    res.status(201).send("Waited 2 seconds to send our response, regardless of the upload's progress");
   }, 2000);
   req.setTimeout(500, () => {
     // This does get called.
@@ -136,7 +148,8 @@ app.post('/data2', (req, res) => {
     console.info('Response timed out...');
   });
 
-  res.send('Sent our response immediately.');
+  console.info('Done');
+  res.send("Sent our response immediately, regardless of upload's progress");
 });
 
 /**
@@ -153,17 +166,18 @@ app.post('/data3', (req, res) => {
     // This does not get called for some reason...
     console.info('Request timed out...');
   });
+  res.setTimeout(500, () => {
+    // This does not get called...
+    console.info('Response timed out...');
+  });
+
   req.on('data', (data) => {
     // Needed for the upload to work.
    });
   req.on('end', () => {
     console.info("Upload ended.");
-    res.status(201).send('Received the file!');
-  });
-
-  res.setTimeout(500, () => {
-    // This does not get called...
-    console.info('Response timed out...');
+    console.info('Done');
+    res.status(201).send('Responded immediately after file was uploaded');
   });
 });
 
@@ -187,7 +201,8 @@ app.post('/data4', (req, res) => {
   req.on('end', () => {
     console.info("Upload ended.");
     setTimeout(() => {
-      res.status(201).send('Received the file!');
+      console.info('Done');
+      res.status(201).send('Waited for 2 seconds after file was uploaded to send this response');
     }, 2000)
   });
 
